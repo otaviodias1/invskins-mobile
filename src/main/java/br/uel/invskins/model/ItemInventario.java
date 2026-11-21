@@ -2,11 +2,14 @@ package br.uel.invskins.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "itens_inventario")
+@Table(name = "itens_inventario", uniqueConstraints =
+        @UniqueConstraint(name = "uk_item_inventario_skin", columnNames = {"inventario_id", "skin_id"}))
 public class ItemInventario {
 
     @Id
@@ -23,6 +26,8 @@ public class ItemInventario {
     @JoinColumn(name = "skin_id", nullable = false)
     private Skin skin;
 
+    @NotNull(message = "A quantidade é obrigatória")
+    @Positive(message = "A quantidade deve ser maior que zero")
     @Column(nullable = false)
     private Integer quantidade;
 

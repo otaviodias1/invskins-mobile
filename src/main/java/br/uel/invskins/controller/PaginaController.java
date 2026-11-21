@@ -7,6 +7,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.NoSuchElementException;
+
 @Controller
 public class PaginaController {
 
@@ -32,8 +34,6 @@ public class PaginaController {
             Model model) {
 
         model.addAttribute("inventarios", inventarioService.listar());
-
-        // Se o parâmetro 'editarId' for passado, carrega os dados para preencher o formulário
         if (editarId != null) {
             inventarioService.buscarPorId(editarId)
                     .ifPresent(inv -> model.addAttribute("inventarioEdicao", inv));
@@ -43,6 +43,7 @@ public class PaginaController {
     }
 
     // 1. ROTA ADICIONADA: Salvar um novo inventário via formulário HTML
+
     @PostMapping("/inventarios")
     public String criarInventario(@RequestParam String nome,
                                   @RequestParam(required = false) String descricao) {
@@ -63,7 +64,8 @@ public class PaginaController {
         dadosAtualizados.setNome(nome);
         dadosAtualizados.setDescricao(descricao);
 
-        inventarioService.atualizar(id, dadosAtualizados);
+        inventarioService.atualizar(id, dadosAtualizados)
+                .orElseThrow(() -> new NoSuchElementException("Inventário não encontrado"));
 
         return "redirect:/inventarios";
     }
@@ -71,7 +73,9 @@ public class PaginaController {
     // 3. ROTA ADICIONADA: Excluir um inventário via formulário HTML
     @PostMapping("/inventarios/{id}/deletar")
     public String excluirInventario(@PathVariable Long id) {
-        inventarioService.excluir(id);
+        if (!inventarioService.excluir(id)) {
+            throw new NoSuchElementException("Inventário não encontrado");
+        }
         return "redirect:/inventarios";
     }
 
@@ -97,7 +101,8 @@ public class PaginaController {
             @RequestParam String skinExternalId,
             @RequestParam(defaultValue = "1") Integer quantidade) {
 
-        inventarioService.adicionarItem(id, skinExternalId, quantidade);
+        inventarioService.adicionarItem(id, skinExternalId, quantidade)
+                .orElseThrow(() -> new NoSuchElementException("Inventário não encontrado"));
         return "redirect:/inventarios/" + id;
     }
 
@@ -108,7 +113,8 @@ public class PaginaController {
             @RequestParam String skinExternalId,
             @RequestParam(defaultValue = "1") Integer quantidade) {
 
-        inventarioService.adicionarItem(inventarioId, skinExternalId, quantidade);
+        inventarioService.adicionarItem(inventarioId, skinExternalId, quantidade)
+                .orElseThrow(() -> new NoSuchElementException("Inventário não encontrado"));
         return "redirect:/inventarios/" + inventarioId;
     }
 
@@ -117,7 +123,9 @@ public class PaginaController {
             @PathVariable Long id,
             @PathVariable Long itemId) {
 
-        inventarioService.removerItem(id, itemId);
+        if (!inventarioService.removerItem(id, itemId)) {
+            throw new NoSuchElementException("Item não encontrado neste inventário");
+        }
         return "redirect:/inventarios/" + id;
     }
 

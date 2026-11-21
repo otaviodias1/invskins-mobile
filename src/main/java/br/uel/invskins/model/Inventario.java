@@ -68,7 +68,6 @@ public class Inventario {
         itens.remove(item);
         item.setInventario(null);
     }
-
     // Calculado a partir dos itens — não é persistido, só aparece no JSON/Thymeleaf
     public double getValorTotal() {
         return itens.stream()

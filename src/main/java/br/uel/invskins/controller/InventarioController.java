@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/inventarios")
@@ -77,8 +76,4 @@ public class InventarioController {
                 : ResponseEntity.notFound().build();
     }
 
-    @ExceptionHandler(NoSuchElementException.class)
-    public ResponseEntity<String> handleNaoEncontrado(NoSuchElementException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    }
 }

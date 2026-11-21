@@ -1,0 +1,8 @@
+# Local configuration containing database credentials
+/src/main/resources/application.properties
+/src/main/resources/application.propreties
+
+# Generated files and local IDE settings
+/target/
+/.idea/
+/.vscode/

@@ -5,7 +5,8 @@ import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "skins")
+@Table(name = "skins", uniqueConstraints =
+        @UniqueConstraint(name = "uk_skin_external_id", columnNames = "external_id"))
 public class Skin {
 
     // Getters e Setters

@@ -9,7 +9,8 @@ create table skins(
 	raridade VARCHAR(50),
 	imagem VARCHAR(500),
 	preco DOUBLE,
-	primary key (id)
+	primary key (id),
+	CONSTRAINT uk_skin_external_id UNIQUE (external_id)
 );
 
 CREATE TABLE inventarios (
@@ -26,6 +27,8 @@ CREATE TABLE itens_inventario (
     skin_id BIGINT NOT NULL,
     quantidade INT NOT NULL,
     PRIMARY KEY (id),
+    CONSTRAINT uk_item_inventario_skin UNIQUE (inventario_id, skin_id),
+    CONSTRAINT ck_item_quantidade_positiva CHECK (quantidade > 0),
     CONSTRAINT fk_item_inventario
         FOREIGN KEY (inventario_id) REFERENCES inventarios (id),
     CONSTRAINT fk_item_skin

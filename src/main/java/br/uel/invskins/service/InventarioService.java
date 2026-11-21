@@ -6,14 +6,20 @@ import br.uel.invskins.model.Skin;
 import br.uel.invskins.repository.InventarioRepository;
 import br.uel.invskins.repository.ItemInventarioRepository;
 import br.uel.invskins.repository.SkinRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Service
+@Validated
 public class InventarioService {
 
     private final InventarioRepository inventarioRepository;
@@ -41,32 +47,36 @@ public class InventarioService {
         return inventarioRepository.findById(id);
     }
 
-    public Inventario criar(Inventario dadosRecebidos) {
+    public Inventario criar(@NotNull @Valid Inventario dadosRecebidos) {
         // Monta um Inventario novo a partir só do nome/descrição — ignora id/itens
         // que o cliente eventualmente tenha mandado no corpo da requisição.
         Inventario novo = new Inventario(dadosRecebidos.getNome(), dadosRecebidos.getDescricao());
         return inventarioRepository.save(novo);
     }
 
-    public Optional<Inventario> atualizar(Long id, Inventario dadosRecebidos) {
-        return inventarioRepository.findById(id).map(inventario -> {
+    @Transactional
+    public Optional<Inventario> atualizar(Long id, @NotNull @Valid Inventario dadosRecebidos) {
+        return inventarioRepository.findByIdForUpdate(id).map(inventario -> {
             inventario.setNome(dadosRecebidos.getNome());
             inventario.setDescricao(dadosRecebidos.getDescricao());
             return inventarioRepository.save(inventario);
         });
     }
 
+    @Transactional
     public boolean excluir(Long id) {
-        if (inventarioRepository.existsById(id)) {
-            inventarioRepository.deleteById(id);
+        return inventarioRepository.findByIdForUpdate(id).map(inventario -> {
+            inventarioRepository.delete(inventario);
             return true;
-        }
-        return false;
+        }).orElse(false);
     }
 
     @Transactional
-    public Optional<Inventario> adicionarItem(Long inventarioId, String skinExternalId, Integer quantidade) {
-        Optional<Inventario> inventarioOpt = inventarioRepository.findById(inventarioId);
+    public Optional<Inventario> adicionarItem(Long inventarioId,
+            @NotBlank(message = "A skin é obrigatória") String skinExternalId,
+            @Positive(message = "A quantidade deve ser maior que zero") Integer quantidade) {
+        // Serialize mutations of an inventory before reading its items.
+        Optional<Inventario> inventarioOpt = inventarioRepository.findByIdForUpdate(inventarioId);
         if (inventarioOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -79,30 +89,46 @@ public class InventarioService {
 
         if (existente.isPresent()) {
             ItemInventario item = existente.get();
+            if (item.getQuantidade() > Integer.MAX_VALUE - qtd) {
+                throw new IllegalArgumentException("A quantidade total excede o limite permitido");
+            }
             item.setQuantidade(item.getQuantidade() + qtd);
             itemInventarioRepository.save(item);
         } else {
-            itemInventarioRepository.save(new ItemInventario(inventarioOpt.get(), skin, qtd));
+            Inventario inventario = inventarioOpt.get();
+            ItemInventario item = new ItemInventario(inventario, skin, qtd);
+            inventario.adicionarItem(item);
+            itemInventarioRepository.save(item);
         }
 
-        return inventarioRepository.findById(inventarioId);
+        return inventarioOpt;
     }
 
     @Transactional
-    public Optional<Inventario> atualizarQuantidade(Long inventarioId, Long itemId, Integer quantidade) {
+    public Optional<Inventario> atualizarQuantidade(Long inventarioId, Long itemId,
+            @NotNull(message = "A quantidade é obrigatória")
+            @Positive(message = "A quantidade deve ser maior que zero") Integer quantidade) {
+        Optional<Inventario> inventario = inventarioRepository.findByIdForUpdate(inventarioId);
+        if (inventario.isEmpty()) {
+            return Optional.empty();
+        }
         return itemInventarioRepository.findByIdAndInventarioId(itemId, inventarioId)
                 .map(item -> {
                     item.setQuantidade(quantidade);
                     itemInventarioRepository.save(item);
-                    return inventarioRepository.findById(inventarioId).orElseThrow();
+                    return inventario.get();
                 });
     }
 
     @Transactional
     public boolean removerItem(Long inventarioId, Long itemId) {
+        Optional<Inventario> inventario = inventarioRepository.findByIdForUpdate(inventarioId);
+        if (inventario.isEmpty()) {
+            return false;
+        }
         return itemInventarioRepository.findByIdAndInventarioId(itemId, inventarioId)
                 .map(item -> {
-                    itemInventarioRepository.delete(item);
+                    inventario.get().removerItem(item);
                     return true;
                 })
                 .orElse(false);
@@ -114,23 +140,7 @@ public class InventarioService {
                 .orElseThrow(() -> new NoSuchElementException(
                         "Skin não encontrada no catálogo: " + externalId));
 
-        Optional<Skin> existente =
-                skinRepository.findByExternalId(externalId);
-
-        if (existente.isPresent()) {
-
-            Skin skin = existente.get();
-
-            skin.setNome(doCatalogo.getNome());
-            skin.setArma(doCatalogo.getArma());
-            skin.setRaridade(doCatalogo.getRaridade());
-            skin.setImagem(doCatalogo.getImagem());
-            skin.setPreco(doCatalogo.getPreco());
-
-            return skinRepository.save(skin);
-        }
-
-        Skin nova = new Skin(
+        skinRepository.salvarDoCatalogo(
                 doCatalogo.getExternalId(),
                 doCatalogo.getNome(),
                 doCatalogo.getArma(),
@@ -139,6 +149,6 @@ public class InventarioService {
                 doCatalogo.getPreco()
         );
 
-        return skinRepository.save(nova);
+        return skinRepository.findByExternalId(externalId).orElseThrow();
     }
 }
