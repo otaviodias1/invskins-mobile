@@ -16,7 +16,6 @@ public class ItemInventario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Ignorado no JSON para não criar loop infinito (Inventario -> itens -> inventario -> itens ...)
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "inventario_id", nullable = false)

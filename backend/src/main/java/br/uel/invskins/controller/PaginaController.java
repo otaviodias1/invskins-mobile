@@ -42,7 +42,6 @@ public class PaginaController {
         return "inventarios";
     }
 
-    // 1. ROTA ADICIONADA: Salvar um novo inventário via formulário HTML
 
     @PostMapping("/inventarios")
     public String criarInventario(@RequestParam String nome,
